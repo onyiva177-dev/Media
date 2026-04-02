@@ -1,0 +1,132 @@
+@import url("https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #0a0a0a;
+  --canvas: #f5f0e8;
+  --amber: #f59e0b;
+  --surface: #141414;
+  --surface-raised: #1c1c1c;
+  --border: rgba(255, 255, 255, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--ink);
+  color: var(--canvas);
+  font-family: "DM Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.3);
+  border-radius: 2px;
+}
+
+/* Video player */
+video {
+  max-height: 70vh;
+  object-fit: contain;
+  background: #000;
+}
+
+/* Amber glow effect */
+.amber-glow {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+/* Grain overlay for texture */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.3;
+}
+
+/* Fade-in animation */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.4s ease forwards;
+}
+
+/* Staggered children */
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(n+6) { animation-delay: 300ms; }
+
+/* Like button bounce */
+@keyframes likeBounce {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  70% { transform: scale(0.9); }
+}
+
+.like-bounce {
+  animation: likeBounce 0.35s ease;
+}
+
+/* Input styles */
+input, textarea, select {
+  background: var(--surface-raised);
+  color: var(--canvas);
+  border: 1px solid var(--border);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+/* Button base */
+.btn-amber {
+  background: var(--amber);
+  color: #000;
+  font-family: "Syne", sans-serif;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-amber:hover {
+  background: #fbbf24;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3);
+}
+
+.btn-amber:active {
+  transform: translateY(0);
+}
