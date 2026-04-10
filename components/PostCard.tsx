@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { formatCount, timeAgo } from "@/lib/utils";
+import { useSettings } from "@/lib/settings";
 import type { Post } from "@/lib/supabase";
 import LikeButton from "./LikeButton";
 import ShareButton from "./ShareButton";
@@ -12,9 +13,11 @@ interface Props {
 }
 
 export default function PostCard({ post }: Props) {
+  const settings = useSettings();
+
   return (
     <article className="bg-surface rounded-2xl overflow-hidden border border-white/5 hover:border-white/10 transition-all duration-300 animate-fade-up">
-      {/* Media */}
+      {/* ── Video preview ── */}
       {post.media_url && post.media_type === "video" && (
         <Link href={`/post/${post.id}`}>
           <div className="relative w-full bg-black group cursor-pointer">
@@ -24,7 +27,9 @@ export default function PostCard({ post }: Props) {
               preload="metadata"
               muted
               playsInline
-              onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play().catch(() => {})}
+              onMouseEnter={(e) =>
+                (e.currentTarget as HTMLVideoElement).play().catch(() => {})
+              }
               onMouseLeave={(e) => {
                 const v = e.currentTarget as HTMLVideoElement;
                 v.pause();
@@ -45,6 +50,7 @@ export default function PostCard({ post }: Props) {
         </Link>
       )}
 
+      {/* ── Image preview ── */}
       {post.media_url && post.media_type === "image" && (
         <Link href={`/post/${post.id}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -57,9 +63,8 @@ export default function PostCard({ post }: Props) {
         </Link>
       )}
 
-      {/* Post body */}
+      {/* ── Post body ── */}
       <div className="p-5">
-        {/* Title */}
         <Link href={`/post/${post.id}`}>
           <h2
             className="text-lg font-bold text-canvas hover:text-amber-400 transition-colors leading-snug mb-1 cursor-pointer"
@@ -69,23 +74,26 @@ export default function PostCard({ post }: Props) {
           </h2>
         </Link>
 
-        {/* Description preview */}
         {post.description && (
           <p className="text-white/50 text-sm leading-relaxed line-clamp-2 mb-4">
             {post.description}
           </p>
         )}
 
-        {/* Meta */}
+        {/* ── Meta row (settings-controlled) ── */}
         <div className="flex items-center gap-3 text-xs text-white/25 mb-4">
-          <span>👁 {formatCount(post.views)}</span>
-          <span>·</span>
+          {settings.show_views && <span>👁 {formatCount(post.views)}</span>}
+          {settings.show_views && <span>·</span>}
+          {settings.show_likes && <span>❤️ {formatCount(post.likes)}</span>}
+          {settings.show_likes && <span>·</span>}
           <span>{timeAgo(post.created_at)}</span>
         </div>
 
-        {/* Actions */}
+        {/* ── Actions (settings-controlled) ── */}
         <div className="flex items-center gap-2 mb-4">
-          <LikeButton postId={post.id} initialLikes={post.likes} />
+          {settings.show_likes && (
+            <LikeButton postId={post.id} initialLikes={post.likes} />
+          )}
           <ShareButton postId={post.id} title={post.title} />
           <Link
             href={`/post/${post.id}`}
@@ -95,7 +103,6 @@ export default function PostCard({ post }: Props) {
           </Link>
         </div>
 
-        {/* Comments */}
         <div className="border-t border-white/5 pt-4">
           <CommentSection postId={post.id} />
         </div>
