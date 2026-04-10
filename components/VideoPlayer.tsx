@@ -34,13 +34,18 @@ export default function VideoPlayer({ src, poster }: Props) {
   // ── Auto-hide controls after inactivity ──
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
-    clearTimeout(hideTimer.current);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
     if (playing) {
       hideTimer.current = setTimeout(() => setShowControls(false), 2800);
     }
   }, [playing]);
 
-  useEffect(() => () => clearTimeout(hideTimer.current), []);
+  useEffect(() => {
+    return () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
+  }, []);
+
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
