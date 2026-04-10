@@ -14,22 +14,22 @@ function formatTime(seconds: number): string {
 }
 
 export default function VideoPlayer({ src, poster }: Props) {
-  const videoRef      = useRef<HTMLVideoElement>(null);
-  const containerRef  = useRef<HTMLDivElement>(null);
-  const hideTimer     = useRef<ReturnType<typeof setTimeout>>();
-  const seekingRef    = useRef(false);
+ const videoRef     = useRef<HTMLVideoElement>(null);
+ const containerRef = useRef<HTMLDivElement>(null);
+ const hideTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+ const seekingRef   = useRef(false);
 
-  const [playing,      setPlaying]      = useState(false);
-  const [progress,     setProgress]     = useState(0);
-  const [buffered,     setBuffered]      = useState(0);
-  const [currentTime,  setCurrentTime]  = useState(0);
-  const [duration,     setDuration]     = useState(0);
-  const [muted,        setMuted]        = useState(false);
-  const [volume,       setVolume]       = useState(1);
-  const [showControls, setShowControls] = useState(true);
-  const [fullscreen,   setFullscreen]   = useState(false);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState(false);
+ const [playing,      setPlaying]      = useState(false);
+ const [progress,     setProgress]     = useState(0);
+ const [buffered,     setBuffered]     = useState(0);
+ const [currentTime,  setCurrentTime]  = useState(0);
+ const [duration,     setDuration]     = useState(0);
+ const [muted,        setMuted]        = useState(false);
+ const [volume,       setVolume]       = useState(1);
+ const [showControls, setShowControls] = useState(true);
+ const [fullscreen,   setFullscreen]   = useState(false);
+ const [loading,      setLoading]      = useState(true);
+ const [error,        setError]        = useState(false);
 
   // ── Auto-hide controls after inactivity ──
   const resetHideTimer = useCallback(() => {
