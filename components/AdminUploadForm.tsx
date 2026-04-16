@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { detectMediaType } from "@/lib/utils";
+import { detectMediaType, docLabel } from "@/lib/utils";
 import type { Post } from "@/lib/supabase";
 
 interface Props {
@@ -9,33 +9,37 @@ interface Props {
 }
 
 type UploadState = "idle" | "uploading" | "creating" | "done" | "error";
+type PostMode    = "media" | "doc";
+
+const DOC_ACCEPT = [
+  ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+  ".txt", ".csv", ".zip", ".rar",
+].join(",");
 
 export default function AdminUploadForm({ onSuccess }: Props) {
-  const [title, setTitle] = useState("");
+  const [mode,        setMode]        = useState<PostMode>("media");
+  const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [state, setState] = useState<UploadState>("idle");
-  const [progress, setProgress] = useState(0);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [mediaType, setMediaType] = useState<"video" | "image" | "text">("text");
+  const [file,        setFile]        = useState<File | null>(null);
+  const [preview,     setPreview]     = useState<string | null>(null);
+  const [mediaType,   setMediaType]   = useState<"video" | "image" | "text">("text");
+  const [state,       setState]       = useState<UploadState>("idle");
+  const [progress,    setProgress]    = useState(0);
+  const [errorMsg,    setErrorMsg]    = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-
-    const detected = f.type.startsWith("video/")
-      ? "video"
-      : f.type.startsWith("image/")
-      ? "image"
-      : "text";
-    setMediaType(detected);
     setFile(f);
 
-    // Preview
-    const url = URL.createObjectURL(f);
-    setPreview(url);
+    if (mode === "media") {
+      const detected = f.type.startsWith("video/") ? "video"
+                     : f.type.startsWith("image/") ? "image"
+                     : "text";
+      setMediaType(detected);
+      setPreview(URL.createObjectURL(f));
+    }
   }
 
   function clearFile() {
@@ -45,8 +49,13 @@ export default function AdminUploadForm({ onSuccess }: Props) {
     setMediaType("text");
   }
 
-  async function uploadFile(f: File): Promise<string> {
-    // Step 1: Get signed upload URL
+  function switchMode(m: PostMode) {
+    setMode(m);
+    clearFile();
+    setErrorMsg("");
+  }
+
+  async function uploadFile(f: File): Promise<{ url: string; isDoc: boolean }> {
     const urlRes = await fetch("/api/admin/upload-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -58,32 +67,27 @@ export default function AdminUploadForm({ onSuccess }: Props) {
       throw new Error(d.error ?? "Failed to get upload URL");
     }
 
-    const { signedUrl, publicUrl, maxSize } = await urlRes.json();
+    const { signedUrl, publicUrl, maxSize, isDoc } = await urlRes.json();
 
     if (f.size > maxSize) {
       const mb = Math.round(maxSize / 1024 / 1024);
-      throw new Error(`File too large. Maximum size is ${mb}MB`);
+      throw new Error(`File too large. Maximum is ${mb} MB`);
     }
 
-    // Step 2: Upload directly to Supabase Storage using XHR for progress
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", signedUrl);
       xhr.setRequestHeader("Content-Type", f.type);
       xhr.upload.onprogress = (ev) => {
-        if (ev.lengthComputable) {
+        if (ev.lengthComputable)
           setProgress(Math.round((ev.loaded / ev.total) * 90));
-        }
       };
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) resolve();
-        else reject(new Error(`Upload failed: ${xhr.statusText}`));
-      };
+      xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error(`Upload failed: ${xhr.statusText}`));
       xhr.onerror = () => reject(new Error("Upload network error"));
       xhr.send(f);
     });
 
-    return publicUrl;
+    return { url: publicUrl, isDoc };
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -95,10 +99,22 @@ export default function AdminUploadForm({ onSuccess }: Props) {
     setProgress(0);
 
     try {
-      let media_url: string | null = null;
+      let media_url:   string | null = null;
+      let final_type:  string        = "text";
+      let doc_filename: string | null = null;
+      let doc_size:    number | null = null;
 
       if (file) {
-        media_url = await uploadFile(file);
+        const { url } = await uploadFile(file);
+        media_url = url;
+
+        if (mode === "doc") {
+          final_type   = "doc";
+          doc_filename = file.name;
+          doc_size     = file.size;
+        } else {
+          final_type = detectMediaType(url);
+        }
       }
 
       setProgress(95);
@@ -108,10 +124,12 @@ export default function AdminUploadForm({ onSuccess }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: title.trim(),
+          title:       title.trim(),
           description: description.trim() || null,
           media_url,
-          media_type: media_url ? detectMediaType(media_url) : "text",
+          media_type:  final_type,
+          doc_filename,
+          doc_size,
         }),
       });
 
@@ -124,15 +142,12 @@ export default function AdminUploadForm({ onSuccess }: Props) {
       setProgress(100);
       setState("done");
 
-      // Reset form
       setTimeout(() => {
-        setTitle("");
-        setDescription("");
-        clearFile();
-        setState("idle");
-        setProgress(0);
+        setTitle(""); setDescription(""); clearFile();
+        setState("idle"); setProgress(0);
         onSuccess(post);
       }, 800);
+
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Something went wrong");
       setState("error");
@@ -144,11 +159,37 @@ export default function AdminUploadForm({ onSuccess }: Props) {
   return (
     <div className="bg-surface rounded-2xl border border-white/5 p-6">
       <h2
-        className="text-xl font-bold text-canvas mb-6"
+        className="text-xl font-bold text-canvas mb-5"
         style={{ fontFamily: "Syne, sans-serif" }}
       >
         Create New Post
       </h2>
+
+      {/* Mode tabs */}
+      <div className="flex gap-2 mb-6 p-1 bg-surface-raised rounded-xl w-fit">
+        <button
+          type="button"
+          onClick={() => switchMode("media")}
+          className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+            mode === "media"
+              ? "bg-amber-400 text-black"
+              : "text-white/40 hover:text-white/70"
+          }`}
+        >
+          🎬 Video / Image
+        </button>
+        <button
+          type="button"
+          onClick={() => switchMode("doc")}
+          className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+            mode === "doc"
+              ? "bg-amber-400 text-black"
+              : "text-white/40 hover:text-white/70"
+          }`}
+        >
+          📄 Document / File
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Title */}
@@ -160,10 +201,10 @@ export default function AdminUploadForm({ onSuccess }: Props) {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Post title..."
+            placeholder={mode === "doc" ? "Document title..." : "Post title..."}
             maxLength={120}
             required
-            className="w-full px-4 py-3 rounded-xl text-sm placeholder:text-white/20"
+            className="w-full px-4 py-3 rounded-xl text-sm placeholder:text-white/20 bg-surface-raised border border-white/5 text-canvas focus:border-amber-400/50 outline-none transition-colors"
           />
         </div>
 
@@ -175,10 +216,14 @@ export default function AdminUploadForm({ onSuccess }: Props) {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Add some context, caption, or story..."
+            placeholder={
+              mode === "doc"
+                ? "Describe this document — what it contains, who it's for..."
+                : "Add some context, caption, or story..."
+            }
             rows={3}
             maxLength={2000}
-            className="w-full px-4 py-3 rounded-xl text-sm resize-none placeholder:text-white/20"
+            className="w-full px-4 py-3 rounded-xl text-sm resize-none placeholder:text-white/20 bg-surface-raised border border-white/5 text-canvas focus:border-amber-400/50 outline-none transition-colors"
           />
           <p className="text-white/20 text-xs text-right mt-1">
             {description.length}/2000
@@ -188,7 +233,7 @@ export default function AdminUploadForm({ onSuccess }: Props) {
         {/* File upload */}
         <div>
           <label className="block text-xs text-white/40 mb-1.5 font-medium">
-            Media (optional)
+            {mode === "doc" ? "File *" : "Media (optional)"}
           </label>
 
           {!file ? (
@@ -196,41 +241,52 @@ export default function AdminUploadForm({ onSuccess }: Props) {
               <input
                 ref={fileRef}
                 type="file"
-                accept="video/*,image/*"
+                accept={mode === "doc" ? DOC_ACCEPT : "video/*,image/*"}
                 onChange={onFileChange}
                 className="hidden"
               />
               <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
-                📎
+                {mode === "doc" ? "📁" : "📎"}
               </div>
-              <p className="text-white/40 text-sm">
-                Drop a video or image here
-              </p>
-              <p className="text-white/20 text-xs mt-1">
-                MP4, WebM, MOV, JPG, PNG, GIF, WebP · Videos up to 500MB
-              </p>
+              {mode === "doc" ? (
+                <>
+                  <p className="text-white/40 text-sm">Select a document or file</p>
+                  <p className="text-white/20 text-xs mt-1">
+                    PDF, Word, Excel, PowerPoint, CSV, ZIP · Up to 100 MB
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-white/40 text-sm">Drop a video or image here</p>
+                  <p className="text-white/20 text-xs mt-1">
+                    MP4, WebM, MOV, JPG, PNG, GIF, WebP · Videos up to 500 MB
+                  </p>
+                </>
+              )}
             </label>
           ) : (
-            <div className="rounded-xl overflow-hidden border border-white/10 relative">
-              {mediaType === "video" && preview && (
-                <video
-                  src={preview}
-                  className="w-full max-h-48 object-contain bg-black"
-                  muted
-                  controls
-                />
+            <div className="rounded-xl overflow-hidden border border-white/10">
+              {mode === "media" && mediaType === "video" && preview && (
+                <video src={preview} className="w-full max-h-48 object-contain bg-black" muted controls />
               )}
-              {mediaType === "image" && preview && (
+              {mode === "media" && mediaType === "image" && preview && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={preview}
-                  alt="preview"
-                  className="w-full max-h-48 object-contain bg-black"
-                />
+                <img src={preview} alt="preview" className="w-full max-h-48 object-contain bg-black" />
               )}
-              <div className="p-3 bg-surface-raised flex items-center justify-between">
+              {mode === "doc" && (
+                <div className="p-6 flex items-center gap-4 bg-surface-raised">
+                  <div className="w-12 h-12 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-2xl">
+                    {docLabel(file.name).emoji}
+                  </div>
+                  <div>
+                    <p className="text-sm text-canvas font-medium">{file.name}</p>
+                    <p className="text-xs text-white/40">{docLabel(file.name).label} · {(file.size / 1024 / 1024).toFixed(1)} MB</p>
+                  </div>
+                </div>
+              )}
+              <div className="p-3 bg-surface-raised border-t border-white/5 flex items-center justify-between">
                 <div className="text-xs text-white/50 truncate">
-                  {file.name} · {(file.size / 1024 / 1024).toFixed(1)}MB
+                  {mode === "media" ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : "Ready to upload"}
                 </div>
                 <button
                   type="button"
@@ -244,7 +300,7 @@ export default function AdminUploadForm({ onSuccess }: Props) {
           )}
         </div>
 
-        {/* Progress bar */}
+        {/* Progress */}
         {busy && (
           <div className="rounded-xl overflow-hidden bg-surface-raised h-2">
             <div
@@ -264,18 +320,18 @@ export default function AdminUploadForm({ onSuccess }: Props) {
         {/* Submit */}
         <button
           type="submit"
-          disabled={busy || !title.trim()}
-          className="w-full py-3 rounded-xl btn-amber text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
+          disabled={busy || !title.trim() || (mode === "doc" && !file)}
+          className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-[1.01] active:scale-[0.99]"
         >
           {state === "uploading"
-            ? `Uploading media... ${progress}%`
+            ? `Uploading... ${progress}%`
             : state === "creating"
             ? "Creating post..."
             : state === "done"
             ? "✓ Published!"
-            : file
-            ? "Upload & Publish"
-            : "Publish Post"}
+            : mode === "doc"
+            ? file ? "Upload Document & Publish" : "Publish Post"
+            : file ? "Upload & Publish" : "Publish Post"}
         </button>
       </form>
     </div>
