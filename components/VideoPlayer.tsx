@@ -168,7 +168,7 @@ export default function VideoPlayer({ src, poster }: Props) {
   function onWaiting()  { setLoading(true); }
   function onCanPlay()  { setLoading(false); }
   function onPlaying()  { setLoading(false); setPlaying(true); resetHideTimer(); }
-  function onPause()    { setPlaying(false);  setShowControls(true);if (hideTimer.current) {clearTimeout(hideTimer.current);}
+  function onPause()    { setPlaying(false); setShowControls(true); if (hideTimer.current) {clearTimeout(hideTimer.current); }
   function onEnded()    { setPlaying(false); setShowControls(true); setProgress(100); }
   function onError()    { setError(true); setLoading(false); }
 
