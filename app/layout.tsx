@@ -6,18 +6,11 @@ export const metadata: Metadata = {
     default: "STREAM — Personal Media",
     template: "%s | STREAM",
   },
-  description: "A personal media space. Videos, images, and thoughts.",
-  openGraph: {
-    type: "website",
-    siteName: "STREAM",
-  },
+  description: "A personal media space. Videos, images, and documents.",
+  openGraph: { type: "website", siteName: "STREAM" },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body className="grain min-h-screen antialiased">
@@ -31,13 +24,28 @@ export default function RootLayout({
             >
               STR<span className="text-amber-400">EA</span>M
             </a>
-            <span className="text-xs text-white/30 font-body">
-              Personal Media
-            </span>
+
+            {/* Nav links */}
+            <nav className="flex items-center gap-1">
+              <a
+                href="/"
+                className="px-3 py-1.5 rounded-lg text-xs text-white/50 hover:text-white/90 hover:bg-white/5 transition-all"
+                style={{ fontFamily: "DM Sans, sans-serif" }}
+              >
+                Feed
+              </a>
+              <a
+                href="/docs"
+                className="px-3 py-1.5 rounded-lg text-xs text-white/50 hover:text-white/90 hover:bg-white/5 transition-all flex items-center gap-1.5"
+                style={{ fontFamily: "DM Sans, sans-serif" }}
+              >
+                <span>📂</span>
+                Docs
+              </a>
+            </nav>
           </div>
         </header>
 
-        {/* Page content */}
         <main className="pt-14">{children}</main>
       </body>
     </html>
