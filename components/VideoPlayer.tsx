@@ -16,7 +16,7 @@ function formatTime(seconds: number): string {
 export default function VideoPlayer({ src, poster }: Props) {
   const videoRef      = useRef<HTMLVideoElement>(null);
   const containerRef  = useRef<HTMLDivElement>(null);
-  const hideTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimer     = useRef<NodeJS.Timeout | null>(null);
   const seekingRef    = useRef(false);
 
   const [playing,      setPlaying]      = useState(false);
@@ -34,10 +34,11 @@ export default function VideoPlayer({ src, poster }: Props) {
   // ── Auto-hide controls after inactivity ──
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
-    clearTimeout(hideTimer.current);
-    if (playing) {
-      hideTimer.current = setTimeout(() => setShowControls(false), 2800);
-    }
+  clearTimeout(hideTimer.current!);
+  if (playing) {
+    hideTimer.current = setTimeout(() => setShowControls(false), 2800);
+  }
+
   }, [playing]);
 
   useEffect(() => () => clearTimeout(hideTimer.current), []);
