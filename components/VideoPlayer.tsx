@@ -41,7 +41,15 @@ export default function VideoPlayer({ src, poster }: Props) {
 
   }, [playing]);
 
-  useEffect(() => () => clearTimeout(hideTimer.current), []);
+  // ── Cleanup hideTimer on unmount ──
+  useEffect(() => {
+    return () => {
+      if (hideTimer.current) {
+        clearTimeout(hideTimer.current);
+      }
+    };
+  }, []);
+
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
