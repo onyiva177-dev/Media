@@ -16,7 +16,7 @@ function formatTime(seconds: number): string {
 export default function VideoPlayer({ src, poster }: Props) {
   const videoRef      = useRef<HTMLVideoElement>(null);
   const containerRef  = useRef<HTMLDivElement>(null);
-  const hideTimer     = useRef<ReturnType<typeof setTimeout>>();
+  const hideTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seekingRef    = useRef(false);
 
   const [playing,      setPlaying]      = useState(false);
